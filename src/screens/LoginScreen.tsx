@@ -9,11 +9,15 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../navigation/StackNavigation';
 import { useAuth } from '../context/AuthContext';
 import { useForm, Controller } from 'react-hook-form';
+
+import { SecureStorage } from '../services/keychain';
+import { UserAccountStorage } from '../services/storage.services';
+import { mockComparePassword } from '../utils/auth';
 
 type LoginScreenProps = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
@@ -28,11 +32,13 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const {
     control,
     handleSubmit,
     formState: { errors },
+    setValue,
   } = useForm<FormData>({
     defaultValues: {
       email: '',
@@ -40,17 +46,61 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
     },
   });
 
+  useEffect(() => {
+    const loadCredentials = async () => {
+      try {
+        const credentials = await SecureStorage.getUserCredentials();
+        if (credentials) {
+          setValue('email', credentials.username);
+          setRememberMe(true);
+        }
+      } catch (error) {
+        console.error('Failed to load credentials:', error);
+      }
+    };
+    loadCredentials();
+  }, [setValue]);
+
   const onSubmit = async (data: FormData) => {
     setLoading(true);
+    setLoginError(null);
+
     try {
-      // In a real app, you would send data to your API
-      console.log('Login data:', data);
-      
-      // Simulate API call
-      await new Promise<void>(resolve => setTimeout(() => resolve(), 1500));
-      login();
+      const storedUser = await UserAccountStorage.findUserByEmail(data.email);
+
+      if (!storedUser) {
+        setLoginError('Invalid email or password.');
+        setLoading(false);
+        return;
+      }
+
+      const isPasswordMatch = await mockComparePassword(
+        data.password,
+        storedUser.hashedPassword,
+      );
+
+      if (!isPasswordMatch) {
+        setLoginError('Invalid email or password.');
+        setLoading(false);
+        return;
+      }
+
+      if (rememberMe) {
+        await SecureStorage.setUserCredentials(data.email, '');
+        console.log('Login: Email saved for "Remember me".');
+      } else {
+        await SecureStorage.removeUserCredentials();
+        console.log('Login: Credentials cleared as "Remember me" is unchecked.');
+      }
+
+      login(storedUser);
     } catch (error) {
       console.error('Login error:', error);
+      let message = 'An unexpected error occurred. Please try again.';
+      if (error instanceof Error) {
+        message = error.message;
+      }
+      setLoginError(message);
     } finally {
       setLoading(false);
     }
@@ -65,8 +115,7 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
-        
-        {/* Logo/Icon Section */}
+
         <View style={styles.logoContainer}>
           <View style={styles.logoCircle}>
             <Text style={styles.logoText}>✓</Text>
@@ -119,10 +168,6 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
               name="password"
               rules={{
                 required: 'Password is required',
-                minLength: {
-                  value: 6,
-                  message: 'Password must be at least 6 characters',
-                },
               }}
               render={({ field: { onChange, onBlur, value } }) => (
                 <TextInput
@@ -144,10 +189,15 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
 
           {/* Remember Me & Forgot Password */}
           <View style={styles.optionsRow}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.rememberMeContainer}
-              onPress={() => setRememberMe(!rememberMe)}>
-              <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+              onPress={() => setRememberMe(!rememberMe)}
+              activeOpacity={0.7}>
+              <View
+                style={[
+                  styles.checkbox,
+                  rememberMe && styles.checkboxChecked,
+                ]}>
                 {rememberMe && <Text style={styles.checkmark}>✓</Text>}
               </View>
               <Text style={styles.rememberMeText}>Remember me</Text>
@@ -158,11 +208,22 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
             </TouchableOpacity>
           </View>
 
+          {/* Display Login Error */}
+          {loginError && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.formErrorText}>{loginError}</Text>
+            </View>
+          )}
+
           {/* Submit Button */}
           <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            style={[
+              styles.submitButton,
+              loading && styles.submitButtonDisabled,
+            ]}
             onPress={handleSubmit(onSubmit)}
-            disabled={loading}>
+            disabled={loading}
+            activeOpacity={0.8}>
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
@@ -178,12 +239,18 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
           </View>
 
           {/* Social Login Buttons */}
-          <TouchableOpacity style={styles.socialButton}>
+          <TouchableOpacity style={styles.socialButton} activeOpacity={0.8}>
             <Text style={styles.socialButtonText}>Continue with Google</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.socialButton, styles.socialButtonApple]}>
-            <Text style={[styles.socialButtonText, styles.socialButtonTextApple]}>
+          <TouchableOpacity
+            style={[styles.socialButton, styles.socialButtonApple]}
+            activeOpacity={0.8}>
+            <Text
+              style={[
+                styles.socialButtonText,
+                styles.socialButtonTextApple,
+              ]}>
               Continue with Apple
             </Text>
           </TouchableOpacity>
@@ -191,9 +258,11 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
           {/* Sign Up Link */}
           <TouchableOpacity
             style={styles.signUpLink}
-            onPress={() => navigation.navigate('Signup')}>
+            onPress={() => navigation.navigate('Signup')}
+            activeOpacity={0.7}>
             <Text style={styles.signUpText}>
-              Don't have an account? <Text style={styles.signUpTextBold}>Sign up</Text>
+              Don't have an account?{' '}
+              <Text style={styles.signUpTextBold}>Sign up</Text>
             </Text>
           </TouchableOpacity>
         </View>
@@ -296,6 +365,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
   },
+  // Form-level error message container
+  errorContainer: {
+    backgroundColor: '#fff5f5',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  // Form-level error message text
+  formErrorText: {
+    color: '#ff4444',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   optionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -351,7 +435,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   submitButtonDisabled: {
-    backgroundColor: '#999',
+    backgroundColor: '#aacfff',
+    shadowColor: 'transparent',
+    elevation: 0,
   },
   submitButtonText: {
     color: '#fff',

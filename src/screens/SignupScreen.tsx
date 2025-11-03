@@ -1,3 +1,5 @@
+// screens/SignupScreen.tsx
+
 import {
   StyleSheet,
   Text,
@@ -14,7 +16,14 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../navigation/StackNavigation';
 import { useAuth } from '../context/AuthContext';
 import { useForm, Controller } from 'react-hook-form';
-import CountryPicker, { Country, CountryCode } from 'react-native-country-picker-modal';
+import CountryPicker, {
+  Country,
+  CountryCode,
+} from 'react-native-country-picker-modal';
+
+import { SecureStorage } from '../services/keychain';
+import { mockHashPassword } from '../utils/auth';
+import { UserAccountStorage } from '../services/storage.services';
 
 type SignupScreenProps = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
@@ -34,6 +43,7 @@ const SignupScreen = ({ navigation }: SignupScreenProps) => {
   const [callingCode, setCallingCode] = useState('1');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [signupError, setSignupError] = useState<string | null>(null);
 
   const {
     control,
@@ -51,23 +61,55 @@ const SignupScreen = ({ navigation }: SignupScreenProps) => {
 
   const onCountrySelect = (country: Country) => {
     setCountryCode(country.cca2);
-    setCallingCode(country.callingCode[0]);
+    setCallingCode(country.callingCode[0] || '1');
   };
 
+  /**
+   * --- ✅ FIX: Updated Signup Logic ---
+   * 1. Hashes the password.
+   * 2. Saves the full user record to the main "database" (UserAccountStorage).
+   * 3. Saves credentials to Keychain (SecureStorage) to allow immediate login.
+   * 4. Calls the signup context to update app state.
+   */
   const onSubmit = async (data: FormData) => {
     setLoading(true);
+    setSignupError(null);
+
     try {
-      // In a real app, you would send data to your API
-      console.log('Signup data:', {
-        ...data,
-        fullPhoneNumber: `+${callingCode}${data.phoneNumber}`,
-      });
-      
-      // Simulate API call
-      await new Promise<void>(resolve => setTimeout(() => resolve(), 1500));
-      signup();
+      // 1. "Hash" the password for database storage
+      const hashedPassword = await mockHashPassword(data.password);
+
+      // 2. Create the user object for the "database"
+      const newUser = {
+        email: data.email,
+        hashedPassword: hashedPassword,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phoneNumber: `+${callingCode}${data.phoneNumber}`,
+      };
+
+      // 3. Attempt to save the user to the main "database"
+      const success = await UserAccountStorage.addUser(newUser);
+
+      if (!success) {
+        setSignupError('An account with this email already exists.');
+        setLoading(false);
+        return;
+      }
+
+      // 4. Registration successful! Save to Keychain for "Remember Me" / pre-fill
+      await SecureStorage.setUserCredentials(data.email, data.password);
+      console.log('Signup: User added to DB and credentials cached in Keychain.');
+
+      // 5. Pass user data to the signup function to update context
+      signup(newUser); 
     } catch (error) {
       console.error('Signup error:', error);
+      let message = 'An unknown error occurred. Please try again.';
+      if (error instanceof Error) {
+        message = `Signup failed: ${error.message}`;
+      }
+      setSignupError(message);
     } finally {
       setLoading(false);
     }
@@ -82,9 +124,12 @@ const SignupScreen = ({ navigation }: SignupScreenProps) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
+
         <View style={styles.header}>
           <Text style={styles.title}>Account setup</Text>
-          <Text style={styles.subtitle}>Create your account to get started</Text>
+          <Text style={styles.subtitle}>
+            Create your account to get started
+          </Text>
         </View>
 
         <View style={styles.form}>
@@ -134,7 +179,8 @@ const SignupScreen = ({ navigation }: SignupScreenProps) => {
                 },
                 pattern: {
                   value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-                  message: 'Password must contain uppercase, lowercase and number',
+                  message:
+                    'Password must contain uppercase, lowercase and number',
                 },
               }}
               render={({ field: { onChange, onBlur, value } }) => (
@@ -271,7 +317,8 @@ const SignupScreen = ({ navigation }: SignupScreenProps) => {
             style={styles.signInLink}
             onPress={() => navigation.navigate('Login')}>
             <Text style={styles.signInText}>
-              Already registered? <Text style={styles.signInTextBold}>Sign in here</Text>
+              Already registered?{' '}
+              <Text style={styles.signInTextBold}>Sign in here</Text>
             </Text>
           </TouchableOpacity>
 
@@ -287,9 +334,19 @@ const SignupScreen = ({ navigation }: SignupScreenProps) => {
             </View>
           </View>
 
+          {/* Display Signup Error */}
+          {signupError && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.formErrorText}>{signupError}</Text>
+            </View>
+          )}
+
           {/* Submit Button */}
           <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            style={[
+              styles.submitButton,
+              loading && styles.submitButtonDisabled,
+            ]}
             onPress={handleSubmit(onSubmit)}
             disabled={loading}>
             {loading ? (
@@ -354,7 +411,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#f9f9ff',
     borderWidth: 1,
     borderColor: '#e0e0e0',
     borderRadius: 8,
@@ -372,6 +429,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
   },
+  errorContainer: {
+    backgroundColor: '#fff5f5',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  formErrorText: {
+    color: '#ff4444',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   phoneInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -384,7 +454,7 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 14,
+    height: 48,
     marginRight: 8,
   },
   callingCode: {
@@ -400,7 +470,7 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
     borderRadius: 8,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    height: 48,
     fontSize: 16,
     color: '#333',
   },
@@ -470,7 +540,9 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   submitButtonDisabled: {
-    backgroundColor: '#999',
+    backgroundColor: '#aacfff',
+    shadowColor: 'transparent',
+    elevation: 0,
   },
   submitButtonText: {
     color: '#fff',
