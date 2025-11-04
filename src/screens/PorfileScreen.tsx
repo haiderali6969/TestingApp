@@ -4,156 +4,177 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-} from "react-native"
-import React from "react"
-import { useAuth } from "../context/AuthContext"
+  Platform,
+} from "react-native";
+import React from "react";
+import { useAuth } from "../context/AuthContext";
 
 const ProfileScreen = () => {
-  const { user } = useAuth()
+  const { user, logout } = useAuth();
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-    >
-      {/* Profile Header */}
-      <View style={styles.profileHeader}>
-        <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>JD</Text>
+    <View style={styles.container}>
+      <View style={styles.customHeader}>
+        <Text style={styles.headerName}>
+          {user?.firstName} {user?.lastName}
+        </Text>
+        <TouchableOpacity onPress={logout} style={styles.logoutButton}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.contentContainer}
+      >
+        <View style={styles.profileHeader}>
+          <View style={styles.avatarContainer}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>JD</Text>
+            </View>
+            <TouchableOpacity style={styles.editAvatarButton}>
+              <Text style={styles.editAvatarText}>✎</Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.editAvatarButton}>
-            <Text style={styles.editAvatarText}>✎</Text>
+          <Text style={styles.userName}>
+            {user?.firstName + " " + user?.lastName}
+          </Text>
+          <Text style={styles.userEmail}>{user?.email}</Text>
+        </View>
+
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statLabel}>Followers</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statLabel}>Following</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statLabel}>Posts</Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuIconContainer}>
+              <Text style={styles.menuIcon}>👤</Text>
+            </View>
+            <Text style={styles.menuText}>Edit Profile</Text>
+            <Text style={styles.menuArrow}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuIconContainer}>
+              <Text style={styles.menuIcon}>🔐</Text>
+            </View>
+            <Text style={styles.menuText}>Change Password</Text>
+            <Text style={styles.menuArrow}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuIconContainer}>
+              <Text style={styles.menuIcon}>🔔</Text>
+            </View>
+            <Text style={styles.menuText}>Notifications</Text>
+            <Text style={styles.menuArrow}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuIconContainer}>
+              <Text style={styles.menuIcon}>🔒</Text>
+            </View>
+            <Text style={styles.menuText}>Privacy & Security</Text>
+            <Text style={styles.menuArrow}>›</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.userName}>
-          {user?.firstName + " " + user?.lastName}
-        </Text>
-        <Text style={styles.userEmail}>{user?.email}</Text>
-      </View>
 
-      {/* Profile Stats */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>0</Text>
-          <Text style={styles.statLabel}>Followers</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Preferences</Text>
+
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuIconContainer}>
+              <Text style={styles.menuIcon}>🌍</Text>
+            </View>
+            <Text style={styles.menuText}>Language</Text>
+            <Text style={styles.menuArrow}>›</Text>
+          </TouchableOpacity>
         </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>0</Text>
-          <Text style={styles.statLabel}>Following</Text>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Support</Text>
+
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuIconContainer}>
+              <Text style={styles.menuIcon}>❓</Text>
+            </View>
+            <Text style={styles.menuText}>Help Center</Text>
+            <Text style={styles.menuArrow}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuIconContainer}>
+              <Text style={styles.menuIcon}>📄</Text>
+            </View>
+            <Text style={styles.menuText}>Terms & Conditions</Text>
+            <Text style={styles.menuArrow}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuIconContainer}>
+              <Text style={styles.menuIcon}>ℹ️</Text>
+            </View>
+            <Text style={styles.menuText}>About</Text>
+            <Text style={styles.menuArrow}>›</Text>
+          </TouchableOpacity>
         </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>0</Text>
-          <Text style={styles.statLabel}>Posts</Text>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Version 1.0.0</Text>
         </View>
-      </View>
+      </ScrollView>
+    </View>
+  );
+};
 
-      {/* Account Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account</Text>
-
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuIconContainer}>
-            <Text style={styles.menuIcon}>👤</Text>
-          </View>
-          <Text style={styles.menuText}>Edit Profile</Text>
-          <Text style={styles.menuArrow}>›</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuIconContainer}>
-            <Text style={styles.menuIcon}>🔐</Text>
-          </View>
-          <Text style={styles.menuText}>Change Password</Text>
-          <Text style={styles.menuArrow}>›</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuIconContainer}>
-            <Text style={styles.menuIcon}>🔔</Text>
-          </View>
-          <Text style={styles.menuText}>Notifications</Text>
-          <Text style={styles.menuArrow}>›</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuIconContainer}>
-            <Text style={styles.menuIcon}>🔒</Text>
-          </View>
-          <Text style={styles.menuText}>Privacy & Security</Text>
-          <Text style={styles.menuArrow}>›</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Preferences Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Preferences</Text>
-
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuIconContainer}>
-            <Text style={styles.menuIcon}>🌙</Text>
-          </View>
-          <Text style={styles.menuText}>Dark Mode</Text>
-          <View style={styles.toggle}>
-            <View style={styles.toggleKnob} />
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuIconContainer}>
-            <Text style={styles.menuIcon}>🌍</Text>
-          </View>
-          <Text style={styles.menuText}>Language</Text>
-          <Text style={styles.menuArrow}>›</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Support Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Support</Text>
-
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuIconContainer}>
-            <Text style={styles.menuIcon}>❓</Text>
-          </View>
-          <Text style={styles.menuText}>Help Center</Text>
-          <Text style={styles.menuArrow}>›</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuIconContainer}>
-            <Text style={styles.menuIcon}>📄</Text>
-          </View>
-          <Text style={styles.menuText}>Terms & Conditions</Text>
-          <Text style={styles.menuArrow}>›</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuIconContainer}>
-            <Text style={styles.menuIcon}>ℹ️</Text>
-          </View>
-          <Text style={styles.menuText}>About</Text>
-          <Text style={styles.menuArrow}>›</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Logout Button - Removed from here since it's in the header */}
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Version 1.0.0</Text>
-      </View>
-    </ScrollView>
-  )
-}
-
-export default ProfileScreen
+export default ProfileScreen;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f5f5",
+  },
+  customHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "ios" ? 60 : 20,
+    paddingBottom: 16,
+    backgroundColor: "transparent",
+  },
+  headerName: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#333",
+  },
+  logoutButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  logoutText: {
+    fontSize: 16,
+    color: "#007AFF",
+    fontWeight: "600",
+  },
+  scrollContainer: {
+    flex: 1,
   },
   contentContainer: {
     paddingBottom: 40,
@@ -322,4 +343,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#999",
   },
-})
+});

@@ -1,6 +1,11 @@
-import React, { createContext, useState, useContext, ReactNode } from 'react';
-import { SecureStorage } from '../services/keychain';
-// Import SecureStorage to clear credentials on logout
+import React, {
+  createContext,
+  useState,
+  useContext,
+  ReactNode,
+  useEffect,
+} from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type AuthContextType = {
   isAuthenticated: boolean;
@@ -8,6 +13,7 @@ type AuthContextType = {
   login: (user: any) => void;
   logout: () => void;
   signup: (user: any) => void;
+  isLoading: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -16,49 +22,79 @@ type AuthProviderProps = {
   children: ReactNode;
 };
 
+const AUTH_SESSION_KEY = "@auth_session";
+
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = (user: any) => {
-    setIsAuthenticated(true);
-    setUser(user);
+  useEffect(() => {
+    const loadSession = async () => {
+      try {
+        const sessionData = await AsyncStorage.getItem(AUTH_SESSION_KEY);
+        if (sessionData) {
+          const { user: storedUser } = JSON.parse(sessionData);
+          setUser(storedUser);
+          setIsAuthenticated(true);
+          console.log("Session restored from storage");
+        }
+      } catch (error) {
+        console.error("Failed to load session:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadSession();
+  }, []);
+
+  const login = async (user: any) => {
+    try {
+      await AsyncStorage.setItem(
+        AUTH_SESSION_KEY,
+        JSON.stringify({ user, timestamp: Date.now() })
+      );
+      setIsAuthenticated(true);
+      setUser(user);
+      console.log("Login successful: Session saved to storage");
+    } catch (error) {
+      console.error("Failed to save session:", error);
+      setIsAuthenticated(true);
+      setUser(user);
+    }
   };
 
-  const signup = (user: any) => {
-    setIsAuthenticated(true);
-    setUser(user);
+  const signup = async (user: any) => {
+    try {
+      await AsyncStorage.setItem(
+        AUTH_SESSION_KEY,
+        JSON.stringify({ user, timestamp: Date.now() })
+      );
+      setIsAuthenticated(true);
+      setUser(user);
+      console.log("Signup successful: Session saved to storage");
+    } catch (error) {
+      console.error("Failed to save session:", error);
+      setIsAuthenticated(true);
+      setUser(user);
+    }
   };
 
-  /**
-   * Logs the user out by:
-   * 1. Clearing the in-memory state (user and isAuthenticated).
-   * 2. (We now skip) Asynchronously removing credentials from SecureStorage.
-   */
   const logout = async () => {
     try {
-      // --- ✅ THIS IS THE FIX (PART 2) ---
-      // We are NOT removing credentials on logout.
-      // Your Login screen depends on these credentials
-      // existing in SecureStorage to validate the user.
-      // Removing them here makes it impossible to log back in.
-      //
-      // await SecureStorage.removeUserCredentials();
-      //
-      // --- END OF FIX (PART 2) ---
-
-      console.log('User logged out, but credentials remain in keychain for next login.');
+      await AsyncStorage.removeItem(AUTH_SESSION_KEY);
+      console.log("User logged out: Session cleared from storage");
     } catch (error) {
-      console.error('Failed to remove credentials on logout:', error);
+      console.error("Failed to clear session:", error);
     }
-    // Clear the in-memory context state
     setIsAuthenticated(false);
     setUser(null);
   };
 
   return (
     <AuthContext.Provider
-      value={{ isAuthenticated, login, logout, signup, user }}>
+      value={{ isAuthenticated, login, logout, signup, user, isLoading }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -67,7 +103,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
